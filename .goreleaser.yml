@@ -1,0 +1,36 @@
+before:
+  hooks:
+    # you may remove this if you don't use vgo
+    - go mod tidy
+    # you may remove this if you don't need go generate
+    - go get -v 
+builds:
+- 
+  env:
+    - CGO_ENABLED=0
+  ldflags:
+    - "-s -w -X main.gitCommit={{ .ShortCommit }}"
+  goos:
+    - darwin
+    - linux
+  goarch:
+    - amd64
+archives:
+- replacements:
+    darwin: Darwin
+    linux: Linux
+    amd64: x86_64
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ .Tag }}"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+    - '^docs:'
+    - '^test:'
+release:
+  github:
+    owner: petems
+    name: vault-cert-info
