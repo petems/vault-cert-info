@@ -41,9 +41,12 @@ When /^I run `bin\/vault-cert-info-int-test cert` with the first serial$/ do
   first_cert = Vault.logical.list("pki/certs").first
 
   Vault.shutdown()
+
+  sleep 3
   steps %Q(
     When I successfully run `bin\/vault-cert-info-int-test cert #{first_cert}`
   )
+
 end
 
 Given("I have the PKI backend enabled with a test cert") do
@@ -55,4 +58,6 @@ Given("I have the PKI backend enabled with a test cert") do
   Vault.logical.write("pki/root/generate/internal", "common_name": "arubatest.com", "ttl": "87600h")
 
   Vault.shutdown()
+
+  sleep 3
 end
