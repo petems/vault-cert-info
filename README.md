@@ -4,7 +4,14 @@
 
 A simple cli app to return certificates from a Vault PKI mount
 
-# Example
+## Install 
+
+```
+# install it into ./bin/
+curl -sSfL https://raw.githubusercontent.com/petems/vault-cert-info/master/install.sh | sh -s v0.1.0
+```
+
+## Example
 
 ### Help
 
