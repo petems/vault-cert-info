@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"math/big"
-	"net/http"
 	"os"
 	"reflect"
 	"time"
@@ -22,6 +21,8 @@ import (
 	"github.com/olekukonko/tablewriter"
 
 	"github.com/urfave/cli/v2"
+
+	vaulthelper "github.com/petems/vault-cert-info/internal"
 )
 
 // Version is what is returned by the `-v` flag
@@ -120,26 +121,6 @@ func getENV(value string) (string, error) {
 	return envValue, nil
 }
 
-// NewVaultClient creates a new Vault API client for Vault
-func NewVaultClient(vaultAddr, vaultToken string) (*api.Client, error) {
-	var httpClient = &http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	client, err := api.NewClient(&api.Config{Address: vaultAddr, HttpClient: httpClient})
-	if err != nil {
-		return nil, err
-	}
-
-	client.SetToken(vaultToken)
-
-	if namespace := os.Getenv("VAULT_NAMESPACE"); namespace != "" {
-		client.SetNamespace(namespace)
-	}
-
-	return client, nil
-}
-
 func parseCertFromVaultSecret(secret *api.Secret) (*certinfo.Certificate, error) {
 	rawCert := secret.Data["certificate"].(string)
 	block, _ := pem.Decode([]byte(rawCert))
@@ -229,7 +210,7 @@ func cmdVaultListCerts(ctx *cli.Context) (err error) {
 		return err
 	}
 
-	client, err := NewVaultClient(vaultAddr, vaultToken)
+	client, err := vaulthelper.NewVaultClient(vaultAddr, vaultToken, nil)
 	if err != nil {
 		return err
 	}
@@ -244,10 +225,6 @@ func cmdVaultListCerts(ctx *cli.Context) (err error) {
 	}
 
 	secret, err := client.Logical().List(fmt.Sprintf("%s/certs/", pkiPath))
-
-	if err != nil {
-		return err
-	}
 
 	if err != nil {
 		return err
@@ -302,7 +279,7 @@ func cmdVaultCert(ctx *cli.Context) (err error) {
 		return err
 	}
 
-	client, err := NewVaultClient(vaultAddr, vaultToken)
+	client, err := vaulthelper.NewVaultClient(vaultAddr, vaultToken, nil)
 	if err != nil {
 		return err
 	}
