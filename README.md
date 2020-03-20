@@ -13,6 +13,8 @@ curl -sSfL https://raw.githubusercontent.com/petems/vault-cert-info/master/insta
 
 ## Example
 
+![Example](./svg_demo.svg)
+
 ### Help
 
 ```
