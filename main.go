@@ -1,9 +1,7 @@
 package main
 
 import (
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"log"
 	"math/big"
@@ -14,7 +12,6 @@ import (
 
 	"github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/sdk/helper/certutil"
-	"github.com/pkg/errors"
 
 	// helpers
 	"github.com/cloudflare/cfssl/certinfo"
@@ -22,6 +19,8 @@ import (
 	"github.com/olekukonko/tablewriter"
 
 	"github.com/urfave/cli/v2"
+
+	vltcrthlpr "github.com/petems/vault-cert-helpers"
 )
 
 // Version is what is returned by the `-v` flag
@@ -114,7 +113,7 @@ VERSION:
 
 func getENV(value string) (string, error) {
 	envValue := os.Getenv(value)
-	if len(value) == 0 || envValue == "" {
+	if len(envValue) == 0 {
 		return "", fmt.Errorf("No ENV value for %s", value)
 	}
 	return envValue, nil
@@ -138,52 +137,6 @@ func NewVaultClient(vaultAddr, vaultToken string) (*api.Client, error) {
 	}
 
 	return client, nil
-}
-
-func parseCertFromVaultSecret(secret *api.Secret) (*certinfo.Certificate, error) {
-	rawCert := secret.Data["certificate"].(string)
-	block, _ := pem.Decode([]byte(rawCert))
-	if block == nil {
-		return nil, errors.New("failed to parse certificate PEM")
-	}
-
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse certificate")
-	}
-
-	certParse := certinfo.ParseCertificate(cert)
-
-	return certParse, nil
-}
-
-func getArrayOfCertsFromVault(client *api.Client, secret *api.Secret, vaultAddr string, pkiPath string, serial bool) (arrayOfCerts []*certinfo.Certificate, err error) {
-
-	var certArray = []*certinfo.Certificate{}
-
-	for _, key := range secret.Data["keys"].([]interface{}) {
-		secret, err := client.Logical().Read(fmt.Sprintf("%s/cert/%s", pkiPath, key))
-		if err != nil {
-			return nil, err
-		}
-
-		certParse, err := parseCertFromVaultSecret(secret)
-
-		if err != nil {
-			return nil, err
-		}
-
-		if serial {
-			bignum, _ := new(big.Int).SetString(certParse.SerialNumber, 0)
-			convertedSerial := certutil.GetHexFormatted(bignum.Bytes(), ":")
-			reflect.ValueOf(certParse).Elem().FieldByName("SerialNumber").SetString(convertedSerial)
-		}
-
-		certArray = append(certArray, certParse)
-
-	}
-
-	return certArray, err
 }
 
 func serialConvert(cert *certinfo.Certificate) {
@@ -243,7 +196,7 @@ func cmdVaultListCerts(ctx *cli.Context) (err error) {
 		fmt.Printf("Reading certs from %s/%s\n", vaultAddr, pkiPath)
 	}
 
-	secret, err := client.Logical().List(fmt.Sprintf("%s/certs/", pkiPath))
+	secret, err := vltcrthlpr.GetListOfCerts(client, pkiPath)
 
 	if err != nil {
 		return err
@@ -253,27 +206,40 @@ func cmdVaultListCerts(ctx *cli.Context) (err error) {
 		return err
 	}
 
-	arrayOfCerts, err := getArrayOfCertsFromVault(client, secret, vaultAddr, pkiPath, convertSerial)
+	arrayOfCerts, err := vltcrthlpr.GetArrayOfCertsFromVault(client, secret, pkiPath)
 
 	if err != nil {
 		return err
+	}
+
+	var arrayOfCertInfo = []*certinfo.Certificate{}
+
+	for _, cert := range arrayOfCerts {
+
+		certinfoCert := certinfo.ParseCertificate(cert)
+
+		if convertSerial {
+			serialConvert(certinfoCert)
+		}
+
+		arrayOfCertInfo = append(arrayOfCertInfo, certinfoCert)
 	}
 
 	switch ctx.String("format") {
 	case "json":
-		certsAsMarshall, err := json.Marshal(arrayOfCerts)
+		certsAsMarshall, err := json.Marshal(arrayOfCertInfo)
 		if err != nil {
 			return err
 		}
 		fmt.Println(string(certsAsMarshall))
 	case "pretty_json":
-		s, err := prettyjson.Marshal(arrayOfCerts)
+		s, err := prettyjson.Marshal(arrayOfCertInfo)
 		if err != nil {
 			return err
 		}
 		fmt.Println(string(s))
 	case "table":
-		tablePrint(arrayOfCerts)
+		tablePrint(arrayOfCertInfo)
 	}
 
 	return nil
@@ -308,6 +274,7 @@ func cmdVaultCert(ctx *cli.Context) (err error) {
 	}
 
 	pkiPath := ctx.String("pki")
+	convertSerial := ctx.Bool("serial")
 
 	if silent {
 
@@ -325,31 +292,33 @@ func cmdVaultCert(ctx *cli.Context) (err error) {
 		return fmt.Errorf("No value found for cert at '%s'", fmt.Sprintf("%s/cert/%s", pkiPath, certSerial))
 	}
 
-	certParse, err := parseCertFromVaultSecret(secret)
+	certParse, err := vltcrthlpr.ParseCertFromVaultSecret(secret)
 
 	if err != nil {
 		return err
 	}
 
-	if ctx.Bool("serial") {
-		serialConvert(certParse)
+	certinfoCert := certinfo.ParseCertificate(certParse)
+
+	if convertSerial {
+		serialConvert(certinfoCert)
 	}
 
 	switch ctx.String("format") {
 	case "json":
-		certAsMarshall, err := json.Marshal(certParse)
+		certAsMarshall, err := json.Marshal(certinfoCert)
 		if err != nil {
 			return err
 		}
 		fmt.Println(string(certAsMarshall))
 	case "pretty_json":
-		s, err := prettyjson.Marshal(certParse)
+		s, err := prettyjson.Marshal(certinfoCert)
 		if err != nil {
 			return err
 		}
 		fmt.Println(string(s))
 	case "table":
-		tablePrint([]*certinfo.Certificate{certParse})
+		tablePrint([]*certinfo.Certificate{certinfoCert})
 	}
 
 	return nil
