@@ -4,18 +4,6 @@ before:
     - go mod tidy
     # you may remove this if you don't need go generate
     - go get -v 
-brew:
-  description: "A simple cli app to return certificates from a Vault PKI mount"
-  homepage: "https://github.com/petems/vault-cert-info"
-  github:
-    owner: petems
-    name: homebrew-tap
-  commit_author:
-    name: goreleaserbot
-    email: goreleaser@carlosbecker.com
-  install: bin.install "vault-cert-info"
-  test: |
-    assert_contains "vault-cert-info - A simple cli app to return certificates from a Vault PKI mount", shell_output("#{bin}/vault-cert-info help").strip
 builds:
 - 
   env:
