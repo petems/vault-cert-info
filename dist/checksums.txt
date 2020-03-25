@@ -1,2 +1,2 @@
-e442417a47bf07962fe4018af8a15658c0b378beb98dd0089b6a713cd1a90d1c  vault-cert-info_0.1.0_Linux_x86_64.tar.gz
-b5ceccd2beb60884c8ec05e0b4805c5f11e86651c8ca7af05ae4aafb1275cd99  vault-cert-info_0.1.0_Darwin_x86_64.tar.gz
+d79327dc8761b01012af1f9965407fe87e700cbb1b382db8c73741aff164a06a  vault-cert-info_v0.1.0_Linux_x86_64.tar.gz
+8934c85fa639c760b0adb35f72947a0ca1a9afea2c4eb8ae28c97bc12b8fb4f5  vault-cert-info_v0.1.0_Darwin_x86_64.tar.gz
