@@ -17,10 +17,9 @@ import (
 	"github.com/cloudflare/cfssl/certinfo"
 	"github.com/hokaccha/go-prettyjson"
 	"github.com/olekukonko/tablewriter"
+	vltcrthlpr "github.com/petems/vault-cert-helpers"
 
 	"github.com/urfave/cli/v2"
-
-	vltcrthlpr "github.com/petems/vault-cert-helpers"
 )
 
 // Version is what is returned by the `-v` flag
@@ -190,23 +189,20 @@ func cmdVaultListCerts(ctx *cli.Context) (err error) {
 	pkiPath := ctx.String("pki")
 	convertSerial := ctx.Bool("serial")
 
-	if silent {
-
-	} else {
+	if !silent {
 		fmt.Printf("Reading certs from %s/%s\n", vaultAddr, pkiPath)
 	}
 
-	secret, err := vltcrthlpr.GetListOfCerts(client, pkiPath)
+	listOfCertsSecret, err := vltcrthlpr.GetListOfCerts(client, pkiPath)
 
 	if err != nil {
+		if pkiPath == "pki" {
+			fmt.Printf("No certs found under 'pki', have you mounted with a different path? Use the parameter 'vault cert --pki=alt_pki_path list'\n")
+		}
 		return err
 	}
 
-	if err != nil {
-		return err
-	}
-
-	arrayOfCerts, err := vltcrthlpr.GetArrayOfCertsFromVault(client, secret, pkiPath)
+	arrayOfCerts, err := vltcrthlpr.GetArrayOfCertsFromVault(client, listOfCertsSecret, pkiPath)
 
 	if err != nil {
 		return err
