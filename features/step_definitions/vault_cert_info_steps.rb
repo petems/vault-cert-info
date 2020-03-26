@@ -30,10 +30,10 @@ Given /^I have a dummy vault server running called "(\w+)" running on port "(\w+
     Given no old "#{container_name}" containers exist
     When I successfully run `docker run --name='#{container_name}' -p #{port}:#{port} -d --cap-add=IPC_LOCK -e 'VAULT_DEV_ROOT_TOKEN_ID=#{token}' -e 'VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:#{port}' vault`
   )
-  sleep 3
+  sleep 2
 end
 
-When /^I run `bin\/vault-cert-info-int-test cert` with the first serial$/ do
+When("I run {string} with the first serial") do |string|
   require 'vault'
   Vault.address = "http://0.0.0.0:8008"
   Vault.token   = "ROOT"
@@ -42,11 +42,10 @@ When /^I run `bin\/vault-cert-info-int-test cert` with the first serial$/ do
 
   Vault.shutdown()
 
-  sleep 3
+  sleep 2
   steps %Q(
-    When I successfully run `bin\/vault-cert-info-int-test cert #{first_cert}`
+    When I successfully run `#{string} #{first_cert}`
   )
-
 end
 
 Given("I have the PKI backend enabled with a test cert") do
@@ -59,5 +58,5 @@ Given("I have the PKI backend enabled with a test cert") do
 
   Vault.shutdown()
 
-  sleep 3
+  sleep 2
 end
