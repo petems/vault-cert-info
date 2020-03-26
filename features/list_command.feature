@@ -21,6 +21,21 @@ Feature: List Command
       "common_name": "arubatest.com",
       """
     And the exit status should be 0
+
+  Scenario: Listing certs when they are present with debug
+    Given no old "dummyvault" containers exist
+    And I set the environment variables to:
+      | variable           | value               |
+      | VAULT_TOKEN        | ROOT                |
+      | VAULT_ADDR         | http://0.0.0.0:8008 |
+    And I have a dummy vault server running called "dummyvault" running on port "8008" with root token "ROOT"
+    And I have the PKI backend enabled with a test cert
+    When I run `bin/vault-cert-info-int-test --debug list` 
+    Then the output should contain:
+      """
+      HTTP/1.1 200 OK
+      """
+    And the exit status should be 0
   
   Scenario: Listing certs when they are present with --format table
     Given no old "dummyvault" containers exist

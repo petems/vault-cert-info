@@ -113,6 +113,8 @@ github.com/olekukonko/tablewriter v0.0.4 h1:vHD/YYe1Wolo78koG299f7V/VAS08c6IpCLn
 github.com/olekukonko/tablewriter v0.0.4/go.mod h1:zq6QwlOf5SlnkVbMSr5EoBv3636FWnp+qbPhuoO21uA=
 github.com/op/go-logging v0.0.0-20160315200505-970db520ece7/go.mod h1:HzydrMdWErDVzsI23lYNej1Htcns9BCg93Dk0bBINWk=
 github.com/pascaldekloe/goe v0.1.0/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144TG7ZOy1lc=
+github.com/petems/client-inspect v0.1.0 h1:1rReklgA+tFrHPUqUR/JSC9OO5k+4SE9COZqHpzaOM0=
+github.com/petems/client-inspect v0.1.0/go.mod h1:qfpCBVrjY45P/yGxgeox3z/ED47erbhYtoQ+b/KKTLs=
 github.com/petems/vault-cert-helpers v0.1.0 h1:Cs50s42FM+3NrGvucJT/5Md6YaDUcsAS8aOLAZpL9g8=
 github.com/petems/vault-cert-helpers v0.1.0/go.mod h1:yUGMbUZI1zGKYrbRmivPE0cbnigB63ha2tzAzUFwxq0=
 github.com/pierrec/lz4 v2.0.5+incompatible h1:2xWsjqPFWcplujydGg4WmhC/6fZqK42wMM8aXeqhl0I=
