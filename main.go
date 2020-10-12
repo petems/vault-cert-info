@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"sort"
 	"time"
 
 	"github.com/hashicorp/vault/api"
@@ -56,6 +57,11 @@ func main() {
 				Name:  "pki",
 				Value: "pki",
 				Usage: "The path to your pki engine",
+			},
+			&cli.BoolFlag{
+				Name:  "sort",
+				Value: true,
+				Usage: "Sort certs A-Z by cert.Subject.CommonName",
 			},
 			&cli.BoolFlag{
 				Name:  "serial",
@@ -206,6 +212,12 @@ func cmdVaultListCerts(ctx *cli.Context) (err error) {
 
 	if err != nil {
 		return err
+	}
+
+	sortOption := ctx.Bool("sort")
+
+	if sortOption {
+		sort.Slice(arrayOfCerts, func(i, j int) bool { return arrayOfCerts[i].Subject.CommonName < arrayOfCerts[j].Subject.CommonName })
 	}
 
 	var arrayOfCertInfo = []*certinfo.Certificate{}
