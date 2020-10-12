@@ -33,6 +33,7 @@ Feature: List Command
     When I run `bin/vault-cert-info-int-test --format=table list` 
     Then the output should contain "COMMON NAME"
     And the output should contain "arubatest.com"
+    And the output should be 615 bytes long
     And the exit status should be 0
 
   Scenario: Error when wrong endpoint is given

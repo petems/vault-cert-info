@@ -155,13 +155,13 @@ func tablePrint(arrayOfCerts []*certinfo.Certificate) {
 	utc := time.FixedZone("UTC+0", 9*60*60)
 
 	for _, cert := range arrayOfCerts {
-
 		data = append(data, []string{cert.Subject.CommonName, cert.Subject.Organization, cert.NotAfter.In(utc).Format(time.RFC3339), cert.SerialNumber})
-
-		for _, v := range data {
-			table.Append(v)
-		}
 	}
+
+	for _, v := range data {
+		table.Append(v)
+	}
+
 	table.Render()
 }
 
