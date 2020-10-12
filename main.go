@@ -55,22 +55,22 @@ func main() {
 			&cli.StringFlag{
 				Name:  "pki",
 				Value: "pki",
-				Usage: fmt.Sprintf("The path to your pki engine"),
+				Usage: "The path to your pki engine",
 			},
 			&cli.BoolFlag{
 				Name:  "serial",
 				Value: true,
-				Usage: fmt.Sprintf("Convert the cert serial from bigint to a HEX formatted string\n\t\teg. 611168959691622484330452100723265332608845077531 -> 6b:0d:c3:94:c9:e1:20:d1:9a:eb:76:66:db:3d:8a:37:23:75:dc:1b"),
+				Usage: "Convert the cert serial from bigint to a HEX formatted string\n\t\teg. 611168959691622484330452100723265332608845077531 -> 6b:0d:c3:94:c9:e1:20:d1:9a:eb:76:66:db:3d:8a:37:23:75:dc:1b",
 			},
 			&cli.StringFlag{
 				Name:  "format",
 				Value: "pretty_json",
-				Usage: fmt.Sprintf("The format you want them returned in, valid values are: table, json, pretty_json"),
+				Usage: "The format you want them returned in, valid values are: table, json, pretty_json",
 			},
 			&cli.BoolFlag{
 				Name:  "silent",
 				Value: true,
-				Usage: fmt.Sprintf("Do not output anything other than errors or returned data"),
+				Usage: "Do not output anything other than errors or returned data",
 			},
 		},
 	}
