@@ -21,7 +21,7 @@ fmt: ## Verifies all files have men `gofmt`ed
 .PHONY: lint
 lint: ## Verifies `golint` passes
 	@echo "+ $@"
-	@golangci-lint run ./... | tee /dev/stderr
+	@golangci-lint run ./...
 
 .PHONY: cover
 cover: ## Runs go test with coverage
