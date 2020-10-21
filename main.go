@@ -224,11 +224,12 @@ func tablePrintDaysToExpiry(arrayOfCerts []*certinfo.Certificate) {
 		daysUntilExpiry := daysBetween(cert.NotAfter.In(utc), currentTime)
 
 		data = append(data, []string{cert.Subject.CommonName, cert.Subject.Organization, cert.NotAfter.In(utc).Format(time.RFC3339), fmt.Sprintf("%v", daysUntilExpiry), cert.SerialNumber})
-
-		for _, v := range data {
-			table.Append(v)
-		}
 	}
+
+	for _, v := range data {
+		table.Append(v)
+	}
+
 	table.Render()
 }
 
