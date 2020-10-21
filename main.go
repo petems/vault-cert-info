@@ -31,6 +31,7 @@ const Version = "0.1.0"
 var gitCommit = "development"
 
 func main() {
+	//nolint:dupl // CLI config is repetitive and flags as duplicates
 	app := &cli.App{
 		Name:    "vault-cert-info",
 		Usage:   "A simple cli app to return certificates from a Vault PKI mount",
@@ -234,6 +235,7 @@ func tablePrintDaysToExpiry(arrayOfCerts []*certinfo.Certificate) {
 
 func printResults(format string, certArray []*certinfo.Certificate) error {
 
+	//nolint:dupl // JSON case gets flagged here
 	switch format {
 	case "json":
 		certAsMarshall, err := json.Marshal(certArray)
