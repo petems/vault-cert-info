@@ -9,6 +9,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/vault/api"
@@ -41,6 +42,26 @@ func main() {
 				Action: func(c *cli.Context) error {
 					err := cmdVaultListCerts(c)
 					return err
+				},
+			},
+			{
+				Name:  "expiry",
+				Usage: "List certificates expiring within a certain amount of days",
+				Action: func(c *cli.Context) error {
+					err := cmdVaultExpiringCerts(c)
+					return err
+				},
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "expiry_days",
+						Usage:    "Number of days until cert expiry to show",
+						Required: true,
+					},
+					&cli.BoolFlag{
+						Name:  "remain_days",
+						Value: false,
+						Usage: "Output table with remaining days instead of the expiry date",
+					},
 				},
 			},
 			{
@@ -150,6 +171,20 @@ func serialConvert(cert *certinfo.Certificate) {
 	reflect.ValueOf(cert).Elem().FieldByName("SerialNumber").SetString(convertedSerial)
 }
 
+func daysBetween(a, b time.Time) int {
+	if a.After(b) {
+		a, b = b, a
+	}
+
+	days := -a.YearDay()
+	for year := a.Year(); year < b.Year(); year++ {
+		days += time.Date(year, time.December, 31, 0, 0, 0, 0, time.UTC).YearDay()
+	}
+	days += b.YearDay()
+
+	return days
+}
+
 func tablePrint(arrayOfCerts []*certinfo.Certificate) {
 
 	data := [][]string{}
@@ -157,6 +192,7 @@ func tablePrint(arrayOfCerts []*certinfo.Certificate) {
 	table.SetAutoWrapText(false)
 	table.SetAutoFormatHeaders(true)
 	table.SetHeader([]string{"Common Name", "Organization", "Expires", "Serial"})
+	table.SetAlignment(tablewriter.ALIGN_CENTER)
 
 	utc := time.FixedZone("UTC+0", 9*60*60)
 
@@ -169,6 +205,62 @@ func tablePrint(arrayOfCerts []*certinfo.Certificate) {
 	}
 
 	table.Render()
+}
+
+func tablePrintDaysToExpiry(arrayOfCerts []*certinfo.Certificate) {
+
+	data := [][]string{}
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetAutoFormatHeaders(true)
+	table.SetHeader([]string{"Common Name", "Organization", "Expires", "Days Until Expiry", "Serial"})
+	table.SetAlignment(tablewriter.ALIGN_CENTER)
+
+	utc := time.FixedZone("UTC+0", 9*60*60)
+
+	for _, cert := range arrayOfCerts {
+
+		currentTime := time.Now()
+		daysUntilExpiry := daysBetween(cert.NotAfter.In(utc), currentTime)
+
+		data = append(data, []string{cert.Subject.CommonName, cert.Subject.Organization, cert.NotAfter.In(utc).Format(time.RFC3339), fmt.Sprintf("%v", daysUntilExpiry), cert.SerialNumber})
+
+		for _, v := range data {
+			table.Append(v)
+		}
+	}
+	table.Render()
+}
+
+func printResults(format string, certArray []*certinfo.Certificate) error {
+
+	switch format {
+	case "json":
+		certAsMarshall, err := json.Marshal(certArray)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(certAsMarshall))
+	case "pretty_json":
+		s, err := prettyjson.Marshal(certArray)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(s))
+	case "table":
+		tablePrint(certArray)
+	default:
+		return fmt.Errorf("invalid format given. valid formats: json, pretty_json, table, got: %s", format)
+	}
+
+	return nil
+
+}
+
+func wrongPkiPath(pkiPath string, command string) {
+	if pkiPath == "pki" {
+		fmt.Printf("No certs found under 'pki', have you mounted with a different path? Use the parameter 'vault-cert-info --pki=alt_pki_path %s'\n", command)
+	}
 }
 
 func cmdVaultListCerts(ctx *cli.Context) (err error) {
@@ -202,9 +294,7 @@ func cmdVaultListCerts(ctx *cli.Context) (err error) {
 	listOfCertsSecret, err := vltcrthlpr.GetListOfCerts(client, pkiPath)
 
 	if err != nil {
-		if pkiPath == "pki" {
-			fmt.Printf("No certs found under 'pki', have you mounted with a different path? Use the parameter 'vault cert --pki=alt_pki_path list'\n")
-		}
+		wrongPkiPath(pkiPath, "list")
 		return err
 	}
 
@@ -233,21 +323,10 @@ func cmdVaultListCerts(ctx *cli.Context) (err error) {
 		arrayOfCertInfo = append(arrayOfCertInfo, certinfoCert)
 	}
 
-	switch ctx.String("format") {
-	case "json":
-		certsAsMarshall, err := json.Marshal(arrayOfCertInfo)
-		if err != nil {
-			return err
-		}
-		fmt.Println(string(certsAsMarshall))
-	case "pretty_json":
-		s, err := prettyjson.Marshal(arrayOfCertInfo)
-		if err != nil {
-			return err
-		}
-		fmt.Println(string(s))
-	case "table":
-		tablePrint(arrayOfCertInfo)
+	err = printResults(ctx.String("format"), arrayOfCertInfo)
+
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -312,21 +391,92 @@ func cmdVaultCert(ctx *cli.Context) (err error) {
 		serialConvert(certinfoCert)
 	}
 
-	switch ctx.String("format") {
-	case "json":
-		certAsMarshall, err := json.Marshal(certinfoCert)
-		if err != nil {
-			return err
+	err = printResults(ctx.String("format"), []*certinfo.Certificate{certinfoCert})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func cmdVaultExpiringCerts(ctx *cli.Context) (err error) {
+
+	silent := ctx.Bool("silent")
+
+	vaultAddr, err := getENV("VAULT_ADDR")
+
+	if err != nil {
+		return err
+	}
+
+	vaultToken, err := getENV("VAULT_TOKEN")
+
+	if err != nil {
+		return err
+	}
+
+	client, err := NewVaultClient(vaultAddr, vaultToken)
+	if err != nil {
+		return err
+	}
+
+	pkiPath := ctx.String("pki")
+	convertSerial := ctx.Bool("serial")
+
+	if !silent {
+		fmt.Printf("Reading certs from %s/%s\n", vaultAddr, pkiPath)
+	}
+
+	listOfCertsSecret, err := vltcrthlpr.GetListOfCerts(client, pkiPath)
+
+	if err != nil {
+		wrongPkiPath(pkiPath, "expiry --max_days=31")
+		return err
+	}
+
+	arrayOfCerts, err := vltcrthlpr.GetArrayOfCertsFromVault(client, listOfCertsSecret, pkiPath)
+
+	if err != nil {
+		return err
+	}
+
+	var arrayOfCertExpiringInfo = []*certinfo.Certificate{}
+
+	expiryDays := ctx.String("expiry_days")
+	expiryDaysInt, err := strconv.Atoi(expiryDays)
+
+	if err != nil {
+		return err
+	}
+
+	for _, cert := range arrayOfCerts {
+
+		certinfoCert := certinfo.ParseCertificate(cert)
+
+		currentTime := time.Now()
+
+		if daysBetween(certinfoCert.NotAfter, currentTime) <= expiryDaysInt {
+			if convertSerial {
+				serialConvert(certinfoCert)
+			}
+
+			arrayOfCertExpiringInfo = append(arrayOfCertExpiringInfo, certinfoCert)
 		}
-		fmt.Println(string(certAsMarshall))
-	case "pretty_json":
-		s, err := prettyjson.Marshal(certinfoCert)
-		if err != nil {
-			return err
-		}
-		fmt.Println(string(s))
-	case "table":
-		tablePrint([]*certinfo.Certificate{certinfoCert})
+
+	}
+
+	remainDays := ctx.Bool("remain_days")
+
+	if remainDays {
+		tablePrintDaysToExpiry(arrayOfCertExpiringInfo)
+	} else {
+		err = printResults(ctx.String("format"), arrayOfCertExpiringInfo)
+	}
+
+	if err != nil {
+		return err
 	}
 
 	return nil

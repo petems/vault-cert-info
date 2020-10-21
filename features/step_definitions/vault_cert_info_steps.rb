@@ -48,13 +48,32 @@ When("I run {string} with the first serial") do |string|
   )
 end
 
-Given("I have the PKI backend enabled with a test cert") do
+Given("I have the PKI backend enabled at {string} with a test cert") do |pki_path|
+	require 'vault'
+  Vault.address = "http://0.0.0.0:8008"
+  Vault.token   = "ROOT"
+
+  Vault.sys.mount(pki_path, "pki", "PKI mount")
+  Vault.sys.mount_tune(pki_path, max_lease_ttl: '87600h')
+  
+  Vault.logical.write("#{pki_path}/root/generate/internal", "common_name": "arubatest.com", "ttl": "87600h")
+  Vault.logical.write("#{pki_path}/config/urls", "issuing_certificates": "http://127.0.0.1:8200/v1/#{pki_path}/ca", "crl_distribution_points": "http://127.0.0.1:8200/v1/#{pki_path}/crl")
+
+  Vault.logical.write("#{pki_path}/roles/arubatest-dot-com", "allowed_domains": "arubatest.com", "allow_subdomains": "true", "max_ttl": "87600h")
+
+  Vault.shutdown()
+
+  sleep 2
+end
+
+Given("I have a certificate that expires in {int} days") do |int_days|
   require 'vault'
   Vault.address = "http://0.0.0.0:8008"
   Vault.token   = "ROOT"
 
-  Vault.sys.mount("pki", "pki", "PKI mount")
-  Vault.logical.write("pki/root/generate/internal", "common_name": "arubatest.com", "ttl": "87600h")
+  string_days = int_days * 24
+
+  Vault.logical.write("pki/issue/arubatest-dot-com", "common_name": "#{int_days}days.arubatest.com", "ttl": "#{string_days}h")
 
   Vault.shutdown()
 
