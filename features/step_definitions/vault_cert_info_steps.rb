@@ -66,6 +66,39 @@ Given("I have the PKI backend enabled at {string} with a test cert") do |pki_pat
   sleep 2
 end
 
+Given("I have enabled vault audits log") do
+  require 'vault'
+  Vault.address = "http://0.0.0.0:8008"
+  Vault.token   = "ROOT"
+
+  # vault audit enable -path=file_raw file file_path=stdout log_raw=true
+
+  audithash = <<-AUDIT
+{
+  "type": "file",
+  "options": {
+    "file_path": "stdout",
+    "log_raw": true
+  }
+}
+AUDIT
+
+  parsed = JSON.parse(audithash)
+  
+  Vault.logical.write("/sys/audit/example-audit", parsed)
+  
+  Vault.shutdown()
+
+  sleep 2
+end
+
+Then("the Docker log output for {string} should contain {string}") do |container_name, logoutput|
+  steps %Q(
+    When I successfully run `docker logs #{container_name}`
+    Then the output should match /#{logoutput}/
+  )
+end
+
 Given("I have a certificate that expires in {int} days") do |int_days|
   require 'vault'
   Vault.address = "http://0.0.0.0:8008"
