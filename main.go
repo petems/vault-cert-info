@@ -14,11 +14,15 @@ import (
 
 	"github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/sdk/helper/certutil"
+	"github.com/sirupsen/logrus"
+	"github.com/whuang8/redactrus"
+	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 
 	// helpers
 	"github.com/cloudflare/cfssl/certinfo"
 	"github.com/hokaccha/go-prettyjson"
 	"github.com/olekukonko/tablewriter"
+	clientInspect "github.com/petems/client-inspect/http"
 	vltcrthlpr "github.com/petems/vault-cert-helpers"
 
 	"github.com/urfave/cli/v2"
@@ -100,6 +104,11 @@ func main() {
 				Value: true,
 				Usage: "Do not output anything other than errors or returned data",
 			},
+			&cli.BoolFlag{
+				Name:  "debug",
+				Value: false,
+				Usage: "Show debug information, with full http logs",
+			},
 		},
 	}
 
@@ -147,12 +156,10 @@ func getENV(value string) (string, error) {
 }
 
 // NewVaultClient creates a new Vault API client for Vault
-func NewVaultClient(vaultAddr, vaultToken string) (*api.Client, error) {
-	var httpClient = &http.Client{
-		Timeout: 10 * time.Second,
-	}
+func NewVaultClient(httpClient *http.Client, vaultAddr, vaultToken string) (*api.Client, error) {
 
 	client, err := api.NewClient(&api.Config{Address: vaultAddr, HttpClient: httpClient})
+
 	if err != nil {
 		return nil, err
 	}
@@ -164,6 +171,35 @@ func NewVaultClient(vaultAddr, vaultToken string) (*api.Client, error) {
 	}
 
 	return client, nil
+}
+
+// NewHTTPClient creates a new HTTP Client for the API
+func NewHTTPClient(debug bool) *http.Client {
+
+	var httpClient = &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	if debug {
+		rh := &redactrus.Hook{
+			AcceptedLevels: logrus.AllLevels,
+			RedactionList:  []string{"^(X-Vault-Token: ).+$"},
+		}
+
+		log := logrus.New()
+
+		textFormatter := new(prefixed.TextFormatter)
+		textFormatter.FullTimestamp = true
+		textFormatter.TimestampFormat = time.RFC822
+
+		log.SetFormatter(textFormatter)
+
+		log.AddHook(rh)
+
+		httpClient = clientInspect.NewClientWriter(nil, nil, log.Writer())
+	}
+
+	return httpClient
 }
 
 func serialConvert(cert *certinfo.Certificate) {
@@ -282,7 +318,11 @@ func cmdVaultListCerts(ctx *cli.Context) (err error) {
 		return err
 	}
 
-	client, err := NewVaultClient(vaultAddr, vaultToken)
+	debug := ctx.Bool("debug")
+
+	httpClient := NewHTTPClient(debug)
+
+	client, err := NewVaultClient(httpClient, vaultAddr, vaultToken)
 	if err != nil {
 		return err
 	}
@@ -358,7 +398,11 @@ func cmdVaultCert(ctx *cli.Context) (err error) {
 		return err
 	}
 
-	client, err := NewVaultClient(vaultAddr, vaultToken)
+	debug := ctx.Bool("debug")
+
+	httpClient := NewHTTPClient(debug)
+
+	client, err := NewVaultClient(httpClient, vaultAddr, vaultToken)
 	if err != nil {
 		return err
 	}
@@ -420,7 +464,11 @@ func cmdVaultExpiringCerts(ctx *cli.Context) (err error) {
 		return err
 	}
 
-	client, err := NewVaultClient(vaultAddr, vaultToken)
+	debug := ctx.Bool("debug")
+
+	httpClient := NewHTTPClient(debug)
+
+	client, err := NewVaultClient(httpClient, vaultAddr, vaultToken)
 	if err != nil {
 		return err
 	}
