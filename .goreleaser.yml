@@ -1,36 +1,51 @@
+# Visit https://goreleaser.com for documentation on how to customize this
+# behavior.
 before:
   hooks:
-    # you may remove this if you don't use vgo
     - go mod tidy
-    # you may remove this if you don't need go generate
-    - go get -v 
 builds:
-- 
-  env:
+- env:
+    # goreleaser does not work with CGO
     - CGO_ENABLED=0
-  ldflags: -s -w -X main.gitCommit={{ .ShortCommit }}
+  mod_timestamp: '{{ .CommitTimestamp }}'
+  flags:
+    - -trimpath
+  ldflags:
+    - '-s -w -X main.Version={{.Version}} -X main.gitCommit={{.Commit}}'
   goos:
-    - darwin
-    - linux
+    - freebsd
     - windows
+    - linux
+    - darwin
   goarch:
     - amd64
+    - '386'
+    - arm
+    - arm64
+  ignore:
+    - goos: darwin
+      goarch: '386'
+  binary: '{{ .ProjectName }}_v{{ .Version }}'
 archives:
-- replacements:
-    darwin: Darwin
-    linux: Linux
-    amd64: x86_64
+- format: zip
+  name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
 checksum:
-  name_template: 'checksums.txt'
-snapshot:
-  name_template: "{{ .Tag }}"
-changelog:
-  sort: asc
-  filters:
-    exclude:
-    - '^docs:'
-    - '^test:'
+  name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
+  algorithm: sha256
+signs:
+  - artifacts: checksum
+    args:
+      # if you are using this is a GitHub action or some other automated pipeline, you 
+      # need to pass the batch flag to indicate its not interactive.
+      - "--batch"
+      - "--local-user"
+      - "{{ .Env.GPG_FINGERPRINT }}" # set this environment variable for your signing key
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
+      - "${artifact}"
 release:
-  github:
-    owner: petems
-    name: vault-cert-info
+  # If you want to manually examine the release before its live, uncomment this line:
+  # draft: true
+changelog:
+  skip: true

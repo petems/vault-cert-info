@@ -29,7 +29,7 @@ import (
 )
 
 // Version is what is returned by the `-v` flag
-const Version = "0.1.0"
+var Version = "0.1.0"
 
 // gitCommit is the gitcommit its built from
 var gitCommit = "development"
