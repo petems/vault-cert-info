@@ -13,7 +13,7 @@ require (
 	github.com/onsi/gomega v1.10.3 // indirect
 	github.com/petems/client-inspect v0.1.0
 	github.com/petems/vault-cert-helpers v0.1.0
-	github.com/sirupsen/logrus v1.3.0
+	github.com/sirupsen/logrus v1.8.3
 	github.com/urfave/cli/v2 v2.2.0
 	github.com/whuang8/redactrus v0.0.0-20181004032950-e5a0e5fc2964
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2
