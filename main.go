@@ -77,6 +77,31 @@ func main() {
 					return err
 				},
 			},
+			{
+				Name:  "tidy",
+				Usage: "Hit the tidy endpoint for the PKI endpoint",
+				Action: func(c *cli.Context) error {
+					err := cmdVaultTidy(c)
+					return err
+				},
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "safety_buffer",
+						Usage: "Specifies A duration (given as an integer number of seconds or a string; defaults to 72h) used as a safety buffer to ensure certificates are not expunged prematurely; as an example, this can keep certificates from being removed from the CRL that, due to clock skew, might still be considered valid on other hosts.",
+						Value: "72h",
+					},
+					&cli.BoolFlag{
+						Name:  "tidy_cert_store",
+						Value: false,
+						Usage: "Specifies whether to tidy up the certificate store.",
+					},
+					&cli.BoolFlag{
+						Name:  "tidy_revoked_certs",
+						Value: false,
+						Usage: "Set to true to expire all revoked and expired certificates, removing them both from the CRL and from storage. The CRL will be rotated if this causes any values to be removed.",
+					},
+				},
+			},
 		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -443,6 +468,59 @@ func cmdVaultCert(ctx *cli.Context) (err error) {
 	if err != nil {
 		return err
 	}
+
+	return nil
+
+}
+
+func cmdVaultTidy(ctx *cli.Context) (err error) {
+
+	silent := ctx.Bool("silent")
+
+	vaultAddr, err := getENV("VAULT_ADDR")
+
+	if err != nil {
+		return err
+	}
+
+	vaultToken, err := getENV("VAULT_TOKEN")
+
+	if err != nil {
+		return err
+	}
+
+	debug := ctx.Bool("debug")
+
+	httpClient := NewHTTPClient(debug)
+
+	client, err := NewVaultClient(httpClient, vaultAddr, vaultToken)
+	if err != nil {
+		return err
+	}
+
+	pkiPath := ctx.String("pki")
+
+	if !silent {
+		fmt.Printf("Hitting PKI Tidy endpoint %s/%s/tidy\n", vaultAddr, pkiPath)
+	}
+
+	tidyCertStore := ctx.Bool("tidy_cert_store")
+
+	tidyRevokedCerts := ctx.Bool("tidy_revoked_certs")
+
+	safetyBuffer := ctx.String("safety_buffer")
+
+	data := make(map[string]interface{}, 3)
+	data["tidy_cert_store"] = tidyCertStore
+	data["tidy_revoked_certs"] = tidyRevokedCerts
+	data["safety_buffer"] = safetyBuffer
+	_, err = client.Logical().Write(fmt.Sprintf("%s/tidy", pkiPath), data)
+
+	if err != nil {
+		return fmt.Errorf("Error when running tidy: %w", err)
+	}
+
+	fmt.Printf("Tidy command complete")
 
 	return nil
 
